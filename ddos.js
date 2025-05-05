@@ -102,7 +102,7 @@ const rl = readline.createInterface({
     output: process.stdout
 });
 
-console.log('\x1b[31m' +
+console.log('\033[38;5;46m' +
 `            
 ⣿⣿⣿⠛⠻⢿⣿⣿⣿⣷⣾⣝⡻⢿⣿⣯⣽⣹⡚⣽⣖⣺⣯⠭⣽⣿⣿⣉⠻⣙⣤⣾⠏   ⢛⣫⣶⣿⣿
 ⣿⣿⣿ ⠑⢦⣤⣉⣉⠛⠛⡷⢿⡗⢉⣉⠉⣉⢍⣁⡒⢶⣶⣾⣩⠝⣫⣵⣿⣿⠿⣁⣠⣶  ⢿⣿⡿⠿⢛
