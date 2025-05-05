@@ -133,7 +133,7 @@ console.log('\033[38;5;46m' +
 '\033[38;5;196m[\033[38;5;46m!]\033[38;5;196m DONT ATTACK: Education Websites\n───────────────────────────────────────────\x1b[0m');
 
 function askForUrl() {
-    rl.question(`\x1b[31m┌─[ \x1b[32m[TARGET URL]\x1b[31m ]─────[ # ]\x1b[0m\n\x1b[31m└─[ \x1b[32m\W\x1b[31m ]────► \x1b[0m`, (url) => {
+    rl.question(`\x1b[31m┌─[ \x1b[32m[😈Rizky blackhead😈]\x1b[31m ]─────[ # ]\x1b[0m\n\x1b[31m└─[ \x1b[32m\W\x1b[31m ]────► \x1b[0m`, (url) => {
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
             console.log("Invalid URL. Please enter a valid URL.");
             askForUrl();
