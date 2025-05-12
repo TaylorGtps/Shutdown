@@ -145,7 +145,7 @@ function askForUrl() {
         } else {
             console.log("\033[38;5;196m");
             console.log("╔══════════════════════════════════════════╗");
-            console.log("║      Sedang mengirim asu 🤣🤣             ║");
+            console.log("║      Sedang mengirim asu 🤣🤣           ║");
             console.log("╚══════════════════════════════════════════╝");
             console.log("\033[0m");
             let continueAttack = true;
