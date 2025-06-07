@@ -5,7 +5,7 @@ const HttpsProxyAgent = require('https-proxy-agent');
 const TelegramBot = require('node-telegram-bot-api');
 
 // Telegram bot token from BotFather
-const REQUIRED_GROUP_ID = -100123456789; // Ganti dengan ID grup kamu
+const REQUIRED_GROUP_ID = -1002696125734; // Ganti dengan ID grup kamu
 const TELEGRAM_TOKEN = '7991511524:AAE1ReD73oQ7p8MRhLtj8UQZf8FxTA1OeG0'; // Replace with your bot token
 const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
 
@@ -162,6 +162,12 @@ bot.onText(/\/mulai\s+(.+)/, async (msg, match) => {
 
     // Cek apakah user sudah join grup
     try {
+    if (!url) {
+        bot.sendMessage(chatId, "📌 Format penggunaan: /mulai <website>\nContoh: `/mulai https://example.com`", {
+            parse_mode: "Markdown"
+        });
+        return;
+    }
         const member = await bot.getChatMember(REQUIRED_GROUP_ID, userId);
         const status = member.status;
 
